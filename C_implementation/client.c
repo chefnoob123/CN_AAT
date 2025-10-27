@@ -23,7 +23,7 @@ void error(const char *msg) {
 }
 
 int main(int argc, char *argv[]) {
-  const char *key = "navit"; // The encryption key
+  const char *key = "ipsum"; // The encryption key
 
   struct sockaddr_in server_addr;
   struct hostent *server;
