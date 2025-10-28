@@ -1,37 +1,121 @@
-# Simple Encrypted C Chat (Client-Server)
+# 🖧 CN_AAT — Computer Networks Assignment/Activity Tasks
 
-This is a basic client-server chat application written in C. It establishes a TCP connection between a single client and a server, allowing for full-duplex (two-way) communication.
-
-All messages sent between the client and server are encrypted using a simple, symmetric XOR cipher with a hardcoded key.
-
-## Features
-
-* **TCP Socket Communication:** Uses standard Berkeley sockets for reliable, connection-oriented chat.
-* **Full-Duplex Chat:** The server uses the `select()` system call to monitor both the client socket and its own terminal (`stdin`) for input. This allows both the server operator and the client to type and send messages at any time without blocking each other.
-* **XOR Encryption:** All messages are encrypted/decrypted using a simple XOR cipher.
-    * **Key:** `ipsum` (hardcoded in `server.c` and `client.c`)
-* **Encrypted/Decrypted View:** To demonstrate the cipher, both terminals will display:
-    1.  The **Encrypted** message (as a hex dump, to correctly show null bytes).
-    2.  The **Decrypted** (real) message as plain text.
-
-## How to Run
-
-You will need two separate terminal windows to run this application: one for the server and one for the client.
-
-### Prerequisites
-
-* A C compiler (e.g., `gcc` on Linux/macOS)
-* The `server.c` and `client.c` files.
+> A set of practical implementations for the **Computer Networks (CN)** course during the **2025-26 Odd Semester**.
 
 ---
 
-### Step 1: Compile the Programs
+## 📚 Table of Contents
+- [Overview](#overview)
+- [Repository Structure](#repository-structure)
+- [Features](#features)
+- [Getting Started](#getting-started)
+  - [Prerequisites](#prerequisites)
+  - [Compilation & Running](#compilation--running)
+- [Usage Examples](#usage-examples)
+- [Contributing](#contributing)
+- [License](#license)
+- [Contact](#contact)
 
-Open a terminal, navigate to the directory where you saved the files, and run the following commands to compile both programs:
+---
 
-```bash
-# Compile the server
-gcc server.c -o server
+## 🧩 Overview
 
-# Compile the client
-gcc client.c -o client
+This repository contains code and documentation for **CN AAT (Assignment/Activity Tasks)** designed to help students understand fundamental concepts in **computer networking** — particularly **client-server communication**, **socket programming**, and **basic encryption**.
+
+Two versions of the programs are included:
+- **C Implementation** – for low-level network programming understanding.
+- **Python Implementation** – for a higher-level, easily testable version.
+
+---
+
+## 🗂 Repository Structure
+
+CN_AAT/
+├── C_implementation/ # C-language client-server implementation
+│ ├── server.c
+│ └── client.c
+│
+├── python_implementation/ # Python implementation (socket programming)
+│ ├── server.py
+│ └── client.py
+│
+└── README.md # This documentation file
+
+
+---
+
+## ⚙️ Features
+
+- **TCP Socket Communication**  
+  Implements reliable, bidirectional communication between client and server.
+
+- **Full-Duplex Chat**  
+  Both endpoints can send and receive messages simultaneously.
+
+- **Simple XOR Encryption**  
+  Demonstrates basic symmetric encryption for educational purposes.
+
+- **Encrypted & Decrypted Output**  
+  Displays both encrypted (hex format) and decrypted (plain text) messages.
+
+- **Cross-Language Examples**  
+  Implementations in both **C** and **Python** to help compare low-level vs. high-level socket handling.
+
+---
+
+## 🚀 Getting Started
+
+### 🔧 Prerequisites
+
+Make sure you have the following installed:
+- **C Compiler** — e.g. `gcc` (for C version)
+- **Python 3.x** — for Python version
+- **Terminal/Command Prompt** to run server & client simultaneously
+
+---
+
+### 🧱 Compilation & Running
+
+#### 🖥️ C Implementation
+
+1. Open **two terminals** — one for the **server** and one for the **client**.
+2. Navigate to the `C_implementation/` directory.
+3. Compile the programs:
+   ```bash
+   gcc server.c -o server
+   gcc client.c -o client
+
+    Start the server:
+
+./server
+
+In another terminal, start the client:
+
+    ./client
+
+    Type messages in either terminal — both should display the encrypted and decrypted forms.
+
+🐍 Python Implementation
+
+    Navigate to the python_implementation/ directory.
+
+    Run the server:
+
+python3 server.py
+
+In another terminal, run the client:
+
+    python3 client.py
+
+    Begin sending messages between the two — encryption/decryption output will be shown in each console.
+
+💬 Usage Examples
+
+Example terminal output:
+
+[Client] Enter message: Hello, Server!
+
+Encrypted (hex): 48 21 35 60 73 ...
+Decrypted: Hello, Server!
+
+Both client and server will display messages in encrypted (hex) and decrypted (plain text) form, illustrating how simple XOR encryption works.
