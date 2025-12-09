@@ -1,15 +1,3 @@
-/*
- * A simple TCP server that communicates using binary-encoded strings
- * with CRC32 error checking.
- *
- * Protocol:
- * 1. Receives a frame: [binary_payload]|[crc_checksum]
- * 2. Validates the payload against the checksum.
- * 3. If invalid, sends a "NACK" frame.
- * 4. If valid, decodes the payload, prints it, and prompts for a reply.
- * 5. Encodes the reply, calculates its CRC, and sends a new frame.
- * This reply acts as the ACK for the client's last message.
- */
 #include <netinet/in.h>
 #include <stdint.h> // For uint32_t
 #include <stdio.h>
@@ -20,30 +8,23 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-// --- CRC32 Implementation ---
-// Standard CRC32 polynomial
-#define CRC32_POLY 0xEDB88320
-
+// --- Checksum Implementation ---
 /**
- * @brief Calculates the CRC32 checksum for a given buffer.
+ * @brief Calculates a simple checksum (sum of bytes) for a given buffer.
  * @param buf The data buffer.
  * @param len The length of the data in bytes.
- * @return The 32-bit CRC checksum.
+ * @return The 32-bit checksum.
  */
-uint32_t crc32(const void *buf, size_t len) {
+uint32_t calculate_checksum(const void *buf, size_t len) {
   const uint8_t *p = (const uint8_t *)buf;
-  uint32_t crc = 0xFFFFFFFF; // Start with all 1s
+  uint32_t checksum = 0;
 
   while (len--) {
-    crc ^= *p++;
-    for (int i = 0; i < 8; i++) {
-      // If the least significant bit is 1, XOR with the polynomial
-      crc = (crc >> 1) ^ (-(crc & 1) & CRC32_POLY);
-    }
+    checksum += *p++;
   }
-  return crc ^ 0xFFFFFFFF; // Invert all bits at the end
+  return checksum;
 }
-// --- End CRC32 ---
+// --- End Checksum ---
 
 /**
  * @brief Utility function to print an error message and exit.
@@ -55,10 +36,6 @@ void error(const char *msg) {
 
 /**
  * @brief Converts a standard null-terminated string into a binary string.
- *
- * @param input The plaintext string (e.g., "Hi").
- * @param output_bin The output buffer. Must be at least (strlen(input) * 8) + 1
- * bytes. Will contain the binary string (e.g., "0100100001101001").
  */
 void string_to_binary(const char *input, char *output_bin) {
   int output_index = 0;
@@ -79,12 +56,7 @@ void string_to_binary(const char *input, char *output_bin) {
 }
 
 /**
- * @brief Converts a binary string (e.g., "01000001") back to a plaintext
- * string.
- *
- * @param input_bin The binary string. Its length MUST be a multiple of 8.
- * @param output_str The output buffer for the plaintext string. Must be at
- * least (strlen(input_bin) / 8) + 1 bytes.
+ * @brief Converts a binary string back to a plaintext string.
  */
 void binary_to_string(const char *input_bin, char *output_str) {
   size_t bin_len = strlen(input_bin);
@@ -107,21 +79,21 @@ void binary_to_string(const char *input_bin, char *output_str) {
 }
 
 /**
- * @brief Sends a complete, CRC-checked frame to the socket.
+ * @brief Sends a complete, Checksum-checked frame to the socket.
  * @param sockfd The socket file descriptor.
  * @param payload The binary string payload to send.
  * @param frame_buf A temporary buffer for frame construction.
  */
 void send_frame(int sockfd, const char *payload, char *frame_buf) {
-  // Calculate CRC on the binary payload
-  uint32_t crc = crc32(payload, strlen(payload));
+  // Calculate Checksum on the binary payload
+  uint32_t chk = calculate_checksum(payload, strlen(payload));
 
-  // Create the full frame: [payload]|[crc]
+  // Create the full frame: [payload]|[checksum]
   bzero(frame_buf, 2100);
-  snprintf(frame_buf, 2100, "%s|%u", payload, crc);
+  snprintf(frame_buf, 2100, "%s|%u", payload, chk);
 
   printf("Server (Frame):  ...%s|%u\n",
-         strlen(payload) > 50 ? payload + strlen(payload) - 50 : payload, crc);
+         strlen(payload) > 50 ? payload + strlen(payload) - 50 : payload, chk);
 
   // Send the binary frame
   int n = write(sockfd, frame_buf, strlen(frame_buf));
@@ -137,7 +109,7 @@ int main(int argc, char *argv[]) {
   // Buffers
   char buffer[256];          // For plaintext
   char payload_buffer[2049]; // For binary string payload
-  char frame_buffer[2100];   // For full frame (payload + '|' + crc)
+  char frame_buffer[2100];   // For full frame (payload + '|' + checksum)
 
   struct sockaddr_in serv_addr, cli_addr;
   int n;
@@ -187,27 +159,28 @@ int main(int argc, char *argv[]) {
     frame_buffer[n] = '\0'; // Ensure null termination
 
     // --- VALIDATE FRAME ---
-    // Find the last '|' which separates payload from CRC
-    char *crc_separator = strrchr(frame_buffer, '|');
-    if (crc_separator == NULL) {
+    // Find the last '|' which separates payload from Checksum
+    char *chk_separator = strrchr(frame_buffer, '|');
+    if (chk_separator == NULL) {
       printf("Client (Error):  Invalid frame format. Discarding.\n");
       continue; // Wait for a new, valid message
     }
 
-    // Split the frame into payload and CRC parts
-    *crc_separator = '\0'; // Terminate the payload part
+    // Split the frame into payload and Checksum parts
+    *chk_separator = '\0'; // Terminate the payload part
     char *payload_part = frame_buffer;
-    char *crc_part = crc_separator + 1;
+    char *chk_part = chk_separator + 1;
 
-    // Verify CRC
-    uint32_t received_crc = (uint32_t)strtoul(crc_part, NULL, 10);
-    uint32_t calculated_crc = crc32(payload_part, strlen(payload_part));
+    // Verify Checksum
+    uint32_t received_chk = (uint32_t)strtoul(chk_part, NULL, 10);
+    uint32_t calculated_chk =
+        calculate_checksum(payload_part, strlen(payload_part));
 
-    if (received_crc != calculated_crc) {
-      // --- CRC MISMATCH: SEND NACK (Negative Acknowledgement) ---
-      printf(
-          "Client (Error):  CRC mismatch! (Got: %u, Calc: %u). Sending NACK.\n",
-          received_crc, calculated_crc);
+    if (received_chk != calculated_chk) {
+      // --- CHECKSUM MISMATCH: SEND NACK (Negative Acknowledgement) ---
+      printf("Client (Error):  Checksum mismatch! (Got: %u, Calc: %u). Sending "
+             "NACK.\n",
+             received_chk, calculated_chk);
 
       bzero(payload_buffer, 2049);
       string_to_binary("NACK", payload_buffer);
@@ -217,12 +190,12 @@ int main(int argc, char *argv[]) {
       continue; // Go back to reading, skipping the rest of the loop
     }
 
-    // --- CRC OK (Implicit ACK) ---
+    // --- CHECKSUM OK (Implicit ACK) ---
     // Print a truncated version of the binary payload for readability
-    printf("Client (Frame):  ...%s|%u (CRC OK)\n",
+    printf("Client (Frame):  ...%s|%u (Checksum OK)\n",
            strlen(payload_part) > 50 ? payload_part + strlen(payload_part) - 50
                                      : payload_part,
-           received_crc);
+           received_chk);
 
     // Convert binary string back to plaintext
     bzero(buffer, 256);
@@ -245,7 +218,7 @@ int main(int argc, char *argv[]) {
     bzero(payload_buffer, 2049);
     string_to_binary(buffer, payload_buffer);
 
-    // Send the complete frame (payload + CRC)
+    // Send the complete frame (payload + Checksum)
     send_frame(newsockfd, payload_buffer, frame_buffer);
 
     // Check if server wants to quit
